@@ -1,58 +1,65 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
-from financial_market_analysis import WebScraper, DataProcessor, PatternAnalyzer, Visualizer
+from wordcloud import WordCloud
 
-# Initialize components
-scraper = WebScraper()
-processor = DataProcessor()
-analyzer = PatternAnalyzer()
-visualizer = Visualizer()
+# Load financial data (Placeholder for real scraped data)
+st.title('Financial Market Analysis')
 
-st.set_page_config(layout='wide', page_title='Financial Market Analysis')
-st.title("📈 Financial Market Analysis Platform")
+# Sidebar options
+st.sidebar.header('Options')
+selected_feature = st.sidebar.selectbox(
+    'Select Feature', ['Stock Trends', 'Volatility', 'Sentiment Analysis', 'Correlation Heatmap']
+)
 
-# Sidebar Menu
-menu = st.sidebar.radio("Navigation", ["Home", "Stock Analysis", "News Sentiment", "Visualization"])
+# Load sample dataset (Replace with real scraped data)
+def load_data():
+    np.random.seed(42)
+    dates = pd.date_range(start='2024-01-01', periods=100)
+    stocks = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK']
+    df = pd.DataFrame({
+        'Date': np.tile(dates, len(stocks)),
+        'Stock': np.repeat(stocks, len(dates)),
+        'Close': np.random.uniform(500, 2500, len(dates) * len(stocks))
+    })
+    return df
 
-if menu == "Home":
-    st.subheader("Welcome to Financial Market Analysis")
-    st.write("This platform allows you to analyze stock trends, sentiment, and correlations interactively.")
+data = load_data()
 
-elif menu == "Stock Analysis":
-    stock_symbol = st.text_input("Enter Stock Symbol (e.g., RELIANCE)")
-    if st.button("Scrape Data"):
-        with st.spinner("Fetching stock data..."):
-            stock_data = scraper.scrape_historical_data(stock_symbol)
-            if not stock_data.empty:
-                st.success("Data Retrieved Successfully!")
-                st.dataframe(stock_data.tail(10))
-                
-                # Trend Analysis
-                trend_results = analyzer.identify_trends(stock_data, stock_symbol)
-                trend_fig = visualizer.plot_stock_trends(trend_results['data'], title=f"{stock_symbol} Price Trend")
-                st.pyplot(trend_fig)
-            else:
-                st.error("Failed to fetch data. Try a different symbol.")
+if selected_feature == 'Stock Trends':
+    st.subheader('Stock Price Trends')
+    stock_selection = st.selectbox('Select Stock', data['Stock'].unique())
+    df_filtered = data[data['Stock'] == stock_selection]
+    fig = px.line(df_filtered, x='Date', y='Close', title=f'{stock_selection} Price Trends')
+    st.plotly_chart(fig)
 
-elif menu == "News Sentiment":
-    if st.button("Analyze Sentiment"):
-        with st.spinner("Analyzing financial news..."):
-            news_data = scraper.scrape_financial_news(10)
-            sentiment_results = analyzer.analyze_sentiment(news_data)
-            st.dataframe(sentiment_results['data'].head())
-            
-            # Word Cloud
-            wordcloud_fig = visualizer.plot_sentiment_wordcloud(sentiment_results['data'])
-            st.pyplot(wordcloud_fig)
+elif selected_feature == 'Volatility':
+    st.subheader('Stock Volatility Analysis')
+    df_filtered = data.groupby('Stock')['Close'].std().reset_index()
+    fig = px.bar(df_filtered, x='Stock', y='Close', title='Stock Volatility')
+    st.plotly_chart(fig)
 
-elif menu == "Visualization":
-    st.subheader("Data Visualization")
-    if st.button("Show Correlation Heatmap"):
-        stock_data = scraper.scrape_historical_data("RELIANCE")
-        correlation_results = analyzer.analyze_correlations(stock_data)
-        heatmap_fig = visualizer.plot_correlation_heatmap(correlation_results['correlation_matrix'])
-        st.pyplot(heatmap_fig)
+elif selected_feature == 'Sentiment Analysis':
+    st.subheader('Sentiment Analysis on Financial News')
+    sample_news = ['Market crashes amid economic downturn', 'Tech stocks surge on strong earnings']
+    sentiment_scores = np.random.uniform(-1, 1, len(sample_news))
+    df_sentiment = pd.DataFrame({'Headline': sample_news, 'Sentiment': sentiment_scores})
+    st.write(df_sentiment)
 
-st.sidebar.markdown("---")
-st.sidebar.text("Developed with ❤️ using Streamlit")
+    # Generate a word cloud
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(' '.join(sample_news))
+    fig, ax = plt.subplots()
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
+
+elif selected_feature == 'Correlation Heatmap':
+    st.subheader('Stock Price Correlation Heatmap')
+    pivot_df = data.pivot(index='Date', columns='Stock', values='Close')
+    correlation_matrix = pivot_df.corr()
+    fig, ax = plt.subplots()
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
